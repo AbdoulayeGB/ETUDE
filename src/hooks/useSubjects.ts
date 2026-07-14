@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, Subject, Course } from '../lib/supabase';
+import { supabase, type Subject, type Course } from '../lib/supabase';
 
 export const useSubjects = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -17,14 +17,11 @@ export const useSubjects = () => {
         .from('subjects')
         .select('*')
         .order('created_at');
-
-      if (error) {
-        setError(error.message);
-      } else {
-        setSubjects(data || []);
-      }
-    } catch (err) {
-      setError('Erreur lors du chargement des matières');
+      if (error) throw error;
+      setSubjects(data || []);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -41,6 +38,9 @@ export const useCourses = (subjectId?: string) => {
   useEffect(() => {
     if (subjectId) {
       fetchCourses(subjectId);
+    } else {
+      setCourses([]);
+      setLoading(false);
     }
   }, [subjectId]);
 
@@ -49,20 +49,14 @@ export const useCourses = (subjectId?: string) => {
       setLoading(true);
       const { data, error } = await supabase
         .from('courses')
-        .select(`
-          *,
-          subject:subjects(*)
-        `)
+        .select('*, subject:subjects(*)')
         .eq('subject_id', subjectId)
         .order('order_index');
-
-      if (error) {
-        setError(error.message);
-      } else {
-        setCourses(data || []);
-      }
-    } catch (err) {
-      setError('Erreur lors du chargement des cours');
+      if (error) throw error;
+      setCourses(data || []);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }

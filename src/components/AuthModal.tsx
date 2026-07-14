@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User } from 'lucide-react';
+import { X, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { isSupabaseReady } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -16,20 +15,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onModeChan
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { signIn, signUp } = useAuth();
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Vérifier si Supabase est configuré
-    if (!isSupabaseReady) {
-      setError('La base de données n\'est pas encore configurée. Veuillez configurer Supabase.');
-      return;
-    }
-    
     setLoading(true);
     setError(null);
 
@@ -39,17 +31,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onModeChan
         if (error) {
           setError(error.message);
         } else {
+          setEmail('');
+          setPassword('');
+          setFullName('');
           onClose();
         }
       } else {
         const { error } = await signIn(email, password);
         if (error) {
-          setError(error.message);
+          setError('Email ou mot de passe incorrect');
         } else {
+          setEmail('');
+          setPassword('');
           onClose();
         }
       }
-    } catch (err) {
+    } catch {
       setError('Une erreur est survenue');
     } finally {
       setLoading(false);
@@ -98,9 +95,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onModeChan
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -135,9 +130,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onModeChan
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
           >
-            {loading ? 'Chargement...' : (mode === 'signin' ? 'Se connecter' : 'S\'inscrire')}
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : mode === 'signin' ? (
+              'Se connecter'
+            ) : (
+              "S'inscrire"
+            )}
           </button>
         </form>
 
@@ -148,7 +149,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onModeChan
               onClick={() => onModeChange(mode === 'signin' ? 'signup' : 'signin')}
               className="ml-2 text-blue-600 hover:text-blue-700 font-semibold"
             >
-              {mode === 'signin' ? 'S\'inscrire' : 'Se connecter'}
+              {mode === 'signin' ? "S'inscrire" : 'Se connecter'}
             </button>
           </p>
         </div>

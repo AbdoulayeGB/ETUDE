@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
-import { type Course, type Exercise, type UserProgress } from '../lib/supabase';
-import { ChevronLeft, CheckCircle, Clock, Star, Loader2, AlertCircle, BookOpen, FileText, Calculator, Microscope, Languages, Globe } from 'lucide-react';
+import type { Course, Exercise, UserProgress } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
+import {
+  ChevronLeft,
+  CheckCircle,
+  Clock,
+  Star,
+  Loader2,
+  AlertCircle,
+  BookOpen,
+  FileText,
+  Play,
+  ExternalLink,
+} from 'lucide-react';
+import { getYouTubeEmbedUrl, isPdf } from './SubjectPage';
 
 interface CourseDetailProps {
   courseId: string;
@@ -26,19 +38,18 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
       setLoading(true);
       setError(null);
 
-      // Fetch course
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
-        .select(`
-          *,
-          subject:subjects(name, color, icon)
-        `)
+        .select('*, subject:subjects(name, color, icon)')
         .eq('id', courseId)
-        .single();
+        .maybeSingle();
 
       if (courseError) throw courseError;
+      if (!courseData) {
+        setError('Cours non trouvé');
+        return;
+      }
 
-      // Fetch exercises
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('exercises')
         .select('*')
@@ -47,17 +58,16 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
 
       if (exercisesError) throw exercisesError;
 
-      // Fetch progress if user is logged in
-      let userProgress = null;
+      let userProgress: UserProgress | null = null;
       if (user) {
         const { data: progressData, error: progressError } = await supabase
           .from('user_progress')
           .select('*')
           .eq('user_id', user.id)
           .eq('course_id', courseId)
-          .single();
+          .maybeSingle();
 
-        if (progressError && progressError.code !== 'PGRST116') throw progressError; // PGRST116 = no rows
+        if (progressError && progressError.code !== 'PGRST116') throw progressError;
         userProgress = progressData || null;
       }
 
@@ -81,25 +91,17 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
       if (progress) {
         const { error } = await supabase
           .from('user_progress')
-          .update({ 
-            completed, 
-            score, 
-            completed_at: completedAt 
-          })
+          .update({ completed, score, completed_at: completedAt })
           .eq('id', progress.id);
-
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('user_progress')
-          .insert({ 
-            user_id: user.id,
-            course_id: course.id,
-            completed,
-            score,
-            completed_at: completedAt
-          });
-
+        const { error } = await supabase.from('user_progress').insert({
+          user_id: user.id,
+          course_id: course.id,
+          completed,
+          score,
+          completed_at: completedAt,
+        });
         if (error) throw error;
       }
 
@@ -126,9 +128,11 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">{error || 'Cours non trouvé'}</h2>
-          <button 
-            onClick={onBack} 
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            {error || 'Cours non trouvé'}
+          </h2>
+          <button
+            onClick={onBack}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Retour aux cours
@@ -138,15 +142,11 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
     );
   }
 
-  const IconComponent = getIconByName(course.subject?.icon || 'BookOpen');
-  const color = course.subject?.color || '#3B82F6';
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <section className={`${getHeaderBgClass(color)} text-white py-20`}>
+      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <button 
+          <button
             onClick={onBack}
             className="flex items-center text-white hover:text-gray-200 mb-4"
           >
@@ -154,21 +154,66 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
             Retour à la matière
           </button>
           <div className="text-center">
-            <IconComponent className="h-16 w-16 mx-auto mb-6" />
+            <BookOpen className="h-16 w-16 mx-auto mb-6" />
             <h1 className="text-4xl font-bold mb-4">{course.title}</h1>
-            <p className="text-xl max-w-2xl mx-auto">{course.description || 'Description du cours non disponible.'}</p>
+            <p className="text-xl max-w-2xl mx-auto">
+              {course.description || 'Description du cours non disponible.'}
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Course Content */}
+        {/* Media content */}
+        {course.media_type === 'video' && course.media_url && getYouTubeEmbedUrl(course.media_url) && (
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Vidéo du cours</h2>
+            <div className="aspect-video w-full rounded-lg overflow-hidden border border-gray-200">
+              <iframe
+                className="w-full h-full"
+                src={getYouTubeEmbedUrl(course.media_url) as string}
+                title={course.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        )}
+
+        {course.media_type === 'document' && course.media_url && (
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Document du cours</h2>
+            <div className="p-4 border border-gray-200 rounded-lg flex items-center justify-between bg-gray-50">
+              <div className="flex items-center space-x-3">
+                <FileText className="h-8 w-8 text-gray-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Document associé</p>
+                  {isPdf(course.media_url) && (
+                    <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">PDF</span>
+                  )}
+                </div>
+              </div>
+              <a
+                href={course.media_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 hover:underline text-sm flex items-center"
+              >
+                Ouvrir <ExternalLink className="h-4 w-4 ml-1" />
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Text content */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Contenu du cours</h2>
           {course.content ? (
             <div className="prose max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: course.content }} />
+              <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {course.content}
+              </div>
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
@@ -178,7 +223,7 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
           )}
         </div>
 
-        {/* Progress Section */}
+        {/* Progress */}
         {user && (
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-4">
@@ -197,15 +242,14 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
                 )}
               </div>
             </div>
-            {!progress?.completed && (
+            {!progress?.completed ? (
               <button
                 onClick={() => updateProgress(true, 85)}
                 className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
               >
                 Marquer ce cours comme complété
               </button>
-            )}
-            {progress?.completed && (
+            ) : (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <p className="text-green-800 text-sm">Cours marqué comme complété !</p>
               </div>
@@ -223,14 +267,24 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
                   <h4 className="font-semibold text-gray-900 mb-2">{exercise.title}</h4>
                   <p className="text-gray-600 mb-4 whitespace-pre-wrap">{exercise.question}</p>
                   <div className="flex items-center justify-between">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      exercise.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
-                      exercise.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {exercise.difficulty === 'easy' ? 'Facile' : exercise.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        exercise.difficulty === 'easy'
+                          ? 'bg-green-100 text-green-800'
+                          : exercise.difficulty === 'medium'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {exercise.difficulty === 'easy'
+                        ? 'Facile'
+                        : exercise.difficulty === 'medium'
+                          ? 'Moyen'
+                          : 'Difficile'}
                     </span>
-                    <span className="text-sm font-medium text-gray-900">{exercise.points} pts</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {exercise.points} pts
+                    </span>
                   </div>
                   <details className="mt-4">
                     <summary className="cursor-pointer text-blue-600 hover:text-blue-800 font-medium">
@@ -253,34 +307,6 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
       </div>
     </div>
   );
-};
-
-// Helper functions (same as in SubjectPage)
-const getHeaderBgClass = (color: string) => {
-  if (color.startsWith('#')) {
-    return `bg-gradient-to-r from-[${color}] to-[${color}]`;
-  }
-  switch (color) {
-    case 'mathematiques': return 'bg-gradient-to-r from-blue-600 to-blue-700';
-    case 'sciences': return 'bg-gradient-to-r from-green-600 to-green-700';
-    case 'langues': return 'bg-gradient-to-r from-purple-600 to-purple-700';
-    case 'histoire': return 'bg-gradient-to-r from-orange-600 to-orange-700';
-    case 'geographie': return 'bg-gradient-to-r from-teal-600 to-teal-700';
-    case 'ressources': return 'bg-gradient-to-r from-indigo-600 to-indigo-700';
-    default: return 'bg-gradient-to-r from-blue-600 to-blue-700';
-  }
-};
-
-const getIconByName = (name: string) => {
-  switch (name) {
-    case 'Calculator': return Calculator;
-    case 'Microscope': return Microscope;
-    case 'Languages': return Languages;
-    case 'Clock': return Clock;
-    case 'Globe': return Globe;
-    case 'BookOpen': return BookOpen;
-    default: return BookOpen;
-  }
 };
 
 export default CourseDetail;

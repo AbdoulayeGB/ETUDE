@@ -1,35 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-// Vérifier si les variables d'environnement Supabase sont configurées
-const isSupabaseConfigured = supabaseUrl && supabaseAnonKey && 
-  supabaseUrl !== 'https://placeholder.supabase.co' && 
-  supabaseAnonKey !== 'placeholder-key';
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Créer le client Supabase seulement si configuré, sinon utiliser un client mock
-export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : createClient('https://placeholder.supabase.co', 'placeholder-key', {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        fetch: () => Promise.reject(new Error('Supabase non configuré. Veuillez configurer vos variables d\'environnement.')),
-      },
-    });
-
-export const isSupabaseReady = isSupabaseConfigured;
-
-// Types TypeScript pour la base de données
 export interface Profile {
   id: string;
   email: string;
-  full_name?: string;
+  full_name?: string | null;
   role: 'student' | 'teacher' | 'admin';
-  level?: string;
+  level?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,9 +19,10 @@ export interface Subject {
   id: string;
   name: string;
   slug: string;
-  description?: string;
+  description?: string | null;
   color: string;
   icon: string;
+  category?: string | null;
   created_at: string;
 }
 
@@ -48,10 +30,12 @@ export interface Course {
   id: string;
   subject_id: string;
   title: string;
-  description?: string;
-  content?: string;
+  description?: string | null;
+  content?: string | null;
   level: string;
   order_index: number;
+  media_type?: string | null;
+  media_url?: string | null;
   created_at: string;
   updated_at: string;
   subject?: Subject;
@@ -75,7 +59,7 @@ export interface UserProgress {
   course_id: string;
   completed: boolean;
   score: number;
-  completed_at?: string;
+  completed_at?: string | null;
   created_at: string;
   course?: Course;
 }

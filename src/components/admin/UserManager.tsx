@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Edit, Trash2, Shield, UserCheck, UserX, Mail, Calendar } from 'lucide-react';
-import { supabase, Profile } from '../../lib/supabase';
+import { Users, CreditCard as Edit, Trash2, Shield, UserCheck, Mail, Calendar, Loader2 } from 'lucide-react';
+import { supabase, type Profile } from '../../lib/supabase';
 
 const UserManager: React.FC = () => {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -20,7 +20,6 @@ const UserManager: React.FC = () => {
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setUsers(data || []);
     } catch (error) {
@@ -32,65 +31,49 @@ const UserManager: React.FC = () => {
 
   const handleEdit = (user: Profile) => {
     setEditingUser(user);
-    setFormData({
-      full_name: user.full_name,
-      role: user.role,
-      level: user.level
-    });
+    setFormData({ full_name: user.full_name, role: user.role, level: user.level });
     setShowForm(true);
   };
 
   const handleSave = async () => {
     if (!editingUser) return;
-    
     try {
       const { error } = await supabase
         .from('profiles')
         .update(formData)
         .eq('id', editingUser.id);
-
       if (error) throw error;
-      
       setShowForm(false);
       setEditingUser(null);
       fetchUsers();
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
+      alert('Erreur lors de la mise à jour.');
     }
   };
 
   const handleDelete = async (userId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
-    
     try {
-      // Supprimer d'abord le profil
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-
-      if (profileError) throw profileError;
-
-      // Puis supprimer l'utilisateur de l'auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      
-      if (authError) throw authError;
-      
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      if (error) throw error;
       fetchUsers();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      alert('Erreur lors de la suppression.');
     }
   };
 
   const getRoleBadge = (role: string) => {
-    const styles = {
+    const styles: Record<string, string> = {
       admin: 'bg-red-100 text-red-800',
       teacher: 'bg-blue-100 text-blue-800',
-      student: 'bg-green-100 text-green-800'
+      student: 'bg-green-100 text-green-800',
     };
-    
     return (
-      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${styles[role as keyof typeof styles]}`}>
+      <span
+        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${styles[role] || styles.student}`}
+      >
         {role === 'admin' ? 'Administrateur' : role === 'teacher' ? 'Enseignant' : 'Étudiant'}
       </span>
     );
@@ -99,7 +82,7 @@ const UserManager: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -113,7 +96,6 @@ const UserManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Statistiques rapides */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
@@ -124,51 +106,42 @@ const UserManager: React.FC = () => {
             </div>
           </div>
         </div>
-        
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
             <Shield className="h-8 w-8 text-red-600" />
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Administrateurs</p>
               <p className="text-2xl font-bold text-gray-900">
-                {users.filter(u => u.role === 'admin').length}
+                {users.filter((u) => u.role === 'admin').length}
               </p>
             </div>
           </div>
         </div>
-        
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
             <UserCheck className="h-8 w-8 text-green-600" />
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Étudiants</p>
               <p className="text-2xl font-bold text-gray-900">
-                {users.filter(u => u.role === 'student').length}
+                {users.filter((u) => u.role === 'student').length}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Formulaire de modification */}
       {showForm && editingUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Modifier l'utilisateur</h3>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
                 ×
               </button>
             </div>
-            
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nom complet
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
                 <input
                   type="text"
                   value={formData.full_name || ''}
@@ -176,14 +149,13 @@ const UserManager: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rôle
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
                 <select
                   value={formData.role || 'student'}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'teacher' | 'student' })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, role: e.target.value as Profile['role'] })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="student">Étudiant</option>
@@ -191,11 +163,8 @@ const UserManager: React.FC = () => {
                   <option value="admin">Administrateur</option>
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Niveau
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label>
                 <input
                   type="text"
                   value={formData.level || ''}
@@ -205,7 +174,6 @@ const UserManager: React.FC = () => {
                 />
               </div>
             </div>
-            
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowForm(false)}
@@ -224,7 +192,6 @@ const UserManager: React.FC = () => {
         </div>
       )}
 
-      {/* Liste des utilisateurs */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -268,9 +235,7 @@ const UserManager: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getRoleBadge(user.role)}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{getRoleBadge(user.role)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {user.level || 'Non défini'}
                   </td>
@@ -301,11 +266,8 @@ const UserManager: React.FC = () => {
             </tbody>
           </table>
         </div>
-        
         {users.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            Aucun utilisateur trouvé.
-          </div>
+          <div className="text-center py-12 text-gray-500">Aucun utilisateur trouvé.</div>
         )}
       </div>
     </div>

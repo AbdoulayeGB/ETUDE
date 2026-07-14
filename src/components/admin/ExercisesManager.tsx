@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, AlertTriangle } from 'lucide-react';
-import { supabase, Course, Exercise } from '../../lib/supabase';
+import { Plus, CreditCard as Edit, Trash2, Save, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { supabase, type Course, type Exercise } from '../../lib/supabase';
 
 const ExercisesManager: React.FC = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -14,7 +14,7 @@ const ExercisesManager: React.FC = () => {
     answer: '',
     difficulty: 'easy',
     points: 10,
-    course_id: ''
+    course_id: '',
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -28,15 +28,8 @@ const ExercisesManager: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('exercises')
-        .select(`
-          *,
-          course:courses(
-            title,
-            subject:subjects(name)
-          )
-        `)
+        .select('*, course:courses(title, subject:subjects(name))')
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setExercises(data || []);
     } catch (err) {
@@ -53,7 +46,6 @@ const ExercisesManager: React.FC = () => {
         .from('courses')
         .select('*, subject:subjects(name)')
         .order('title');
-
       if (error) throw error;
       setCourses(data || []);
     } catch (err) {
@@ -69,7 +61,7 @@ const ExercisesManager: React.FC = () => {
       answer: '',
       difficulty: 'easy',
       points: 10,
-      course_id: ''
+      course_id: '',
     });
     setShowForm(true);
     setError(null);
@@ -83,7 +75,7 @@ const ExercisesManager: React.FC = () => {
       answer: exercise.answer,
       difficulty: exercise.difficulty,
       points: exercise.points,
-      course_id: exercise.course_id
+      course_id: exercise.course_id,
     });
     setShowForm(true);
     setError(null);
@@ -94,7 +86,6 @@ const ExercisesManager: React.FC = () => {
       setError('Tous les champs obligatoires doivent être remplis');
       return;
     }
-
     try {
       setLoading(true);
       if (editingExercise) {
@@ -102,16 +93,11 @@ const ExercisesManager: React.FC = () => {
           .from('exercises')
           .update(formData as Exercise)
           .eq('id', editingExercise.id);
-
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('exercises')
-          .insert([formData as Exercise]);
-
+        const { error } = await supabase.from('exercises').insert([formData as Exercise]);
         if (error) throw error;
       }
-
       setShowForm(false);
       setEditingExercise(null);
       fetchExercises();
@@ -125,13 +111,8 @@ const ExercisesManager: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
-
     try {
-      const { error } = await supabase
-        .from('exercises')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('exercises').delete().eq('id', id);
       if (error) throw error;
       fetchExercises();
     } catch (err: any) {
@@ -143,7 +124,7 @@ const ExercisesManager: React.FC = () => {
   if (loading && !exercises.length) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -171,7 +152,6 @@ const ExercisesManager: React.FC = () => {
         </div>
       )}
 
-      {/* Formulaire modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -179,14 +159,10 @@ const ExercisesManager: React.FC = () => {
               <h3 className="text-lg font-semibold">
                 {editingExercise ? 'Modifier' : 'Ajouter'} un exercice
               </h3>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="h-6 w-6" />
               </button>
             </div>
-
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -199,14 +175,13 @@ const ExercisesManager: React.FC = () => {
                   required
                 >
                   <option value="">Sélectionner un cours</option>
-                  {courses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.title} ({course.subject?.name})
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title} ({c.subject?.name})
                     </option>
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Titre de l'exercice *
@@ -220,11 +195,8 @@ const ExercisesManager: React.FC = () => {
                   required
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Question *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Question *</label>
                 <textarea
                   value={formData.question || ''}
                   onChange={(e) => setFormData({ ...formData, question: e.target.value })}
@@ -234,11 +206,8 @@ const ExercisesManager: React.FC = () => {
                   required
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Réponse *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Réponse *</label>
                 <textarea
                   value={formData.answer || ''}
                   onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
@@ -248,15 +217,17 @@ const ExercisesManager: React.FC = () => {
                   required
                 />
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Difficulté
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulté</label>
                   <select
                     value={formData.difficulty || 'easy'}
-                    onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as 'easy' | 'medium' | 'hard' })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        difficulty: e.target.value as 'easy' | 'medium' | 'hard',
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="easy">Facile</option>
@@ -264,15 +235,14 @@ const ExercisesManager: React.FC = () => {
                     <option value="hard">Difficile</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Points
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Points</label>
                   <input
                     type="number"
                     value={formData.points || 10}
-                    onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, points: parseInt(e.target.value) || 0 })
+                    }
                     min="1"
                     max="100"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -280,7 +250,6 @@ const ExercisesManager: React.FC = () => {
                 </div>
               </div>
             </div>
-
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowForm(false)}
@@ -302,7 +271,6 @@ const ExercisesManager: React.FC = () => {
         </div>
       )}
 
-      {/* Liste des exercices */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -329,40 +297,46 @@ const ExercisesManager: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {exercises.map((exercise) => (
-                <tr key={exercise.id} className="hover:bg-gray-50">
+              {exercises.map((ex) => (
+                <tr key={ex.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{exercise.title}</div>
+                    <div className="text-sm font-medium text-gray-900">{ex.title}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {exercise.course?.title || 'N/A'} ({exercise.course?.subject?.name || ''})
+                    {ex.course?.title || 'N/A'} ({(ex.course as any)?.subject?.name || ''})
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      exercise.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
-                      exercise.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {exercise.difficulty === 'easy' ? 'Facile' : exercise.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        ex.difficulty === 'easy'
+                          ? 'bg-green-100 text-green-800'
+                          : ex.difficulty === 'medium'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {ex.difficulty === 'easy'
+                        ? 'Facile'
+                        : ex.difficulty === 'medium'
+                          ? 'Moyen'
+                          : 'Difficile'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {exercise.points}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ex.points}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(exercise.created_at).toLocaleDateString('fr-FR')}
+                    {new Date(ex.created_at).toLocaleDateString('fr-FR')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => handleEdit(exercise)}
+                        onClick={() => handleEdit(ex)}
                         className="text-blue-600 hover:text-blue-900"
                         title="Modifier"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(exercise.id)}
+                        onClick={() => handleDelete(ex.id)}
                         className="text-red-600 hover:text-red-900"
                         title="Supprimer"
                       >
@@ -375,12 +349,12 @@ const ExercisesManager: React.FC = () => {
             </tbody>
           </table>
         </div>
-
         {exercises.length === 0 && !loading && (
           <div className="text-center py-12 text-gray-500">
-            Aucun exercice trouvé. <br />
-            <button 
-              onClick={handleCreate} 
+            Aucun exercice trouvé.
+            <br />
+            <button
+              onClick={handleCreate}
               className="mt-2 text-blue-600 hover:text-blue-800 font-medium"
             >
               Ajoutez le premier exercice

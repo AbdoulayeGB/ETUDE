@@ -22,7 +22,7 @@ const AdminPanel: React.FC = () => {
     { id: 'content', name: 'Gestion des Matières', icon: BookOpen },
     { id: 'courses', name: 'Gestion des Cours', icon: FileText },
     { id: 'exercises', name: 'Gestion des Exercices', icon: CheckCircle },
-    { id: 'users', name: 'Gestion des Utilisateurs', icon: Users }
+    { id: 'users', name: 'Gestion des Utilisateurs', icon: Users },
   ];
 
   const renderContent = () => {
@@ -51,18 +51,19 @@ const AdminPanel: React.FC = () => {
   }
 
   if (!user || profile?.role !== 'admin') {
-    console.log('Accès refusé:', { user, profile });
     return (
       <div className="max-w-md mx-auto mt-10">
         <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Accès administrateur requis</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Accès administrateur requis
+          </h2>
           {user ? (
             <div className="text-red-600">
-              Vous n'avez pas les droits d'administration nécessaires.
-              Si vous pensez que c'est une erreur, veuillez contacter le support.
+              Vous n'avez pas les droits d'administration nécessaires. Si vous pensez que c'est
+              une erreur, veuillez contacter le support.
             </div>
           ) : (
-            <AdminAuth onSuccess={() => window.location.reload()} />
+            <AdminAuth />
           )}
         </div>
       </div>
@@ -71,23 +72,23 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        <div className="w-64 bg-white shadow-lg">
+      <div className="flex flex-col lg:flex-row">
+        <div className="w-full lg:w-64 bg-white shadow-lg">
           <div className="p-6">
             <div className="flex items-center">
               <Shield className="h-8 w-8 text-blue-600" />
               <h1 className="ml-3 text-xl font-bold text-gray-900">Panel Admin</h1>
             </div>
           </div>
-          
-          <nav className="mt-6">
+
+          <nav className="mt-6 flex lg:flex-col overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center px-6 py-3 text-left transition-colors ${
+                className={`w-full flex items-center px-6 py-3 text-left transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
+                    ? 'bg-blue-50 text-blue-600 lg:border-r-2 lg:border-blue-600'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -98,9 +99,7 @@ const AdminPanel: React.FC = () => {
           </nav>
         </div>
 
-        <div className="flex-1 p-8">
-          {renderContent()}
-        </div>
+        <div className="flex-1 p-4 sm:p-8">{renderContent()}</div>
       </div>
     </div>
   );
